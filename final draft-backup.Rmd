@@ -1,0 +1,167 @@
+
+
+```{r}
+
+pima <-read.table("https://raw.githubusercontent.com/kgourgou/Public-Health-Final-Project/master/pima-indians-diabetes.data.txt",header=FALSE, sep=",", col.names= c("TP", "PGC", "DBP", "TSF", "SI", "BMI", "DPF", "age", "diab"))
+head (pima)
+
+### data analysis 
+
+str (pima)## there are 768 observations and 9 variables , all the data are either integer or numeric ##
+pima$diab <- as.factor (pima$diab)
+summary (pima)
+
+## it i sobserved that in the original data set , there are some unusual data and some potential outliers such as :1. The maxiam time of pregreant is 17 , which is unreal ; 2. the minium BMI value is 0; 3. DBP blood pressure is 0, 
+
+
+cor(pima[1:8]) ### there are a strong relationship between the TP annd age, others showed a weak correlation with each other in this sample.
+par(mfrow=c(2,3))
+hist(pima[,1], xlab="Number of times pregnant", main="Histogram of Number of times pregnant")
+hist(pima[,2], xlab="Plasma glucose concentration ", main="Histogram of Plasma glucose concentration ")
+hist(pima[,3], xlab="Diastolic blood pressure ", main="Histogram of Diastolic blood pressure ")
+hist(pima[,4], xlab="Triceps skin fold thickness ", main="Histogram of Triceps skin fold thickness ")
+hist(pima[,5], xlab="2-Hour serum insulin  ", main="2-Hour serum insulin")
+hist(pima[,6], xlab="Body mass index ", main="Histogram of Body mass index ")
+hist(pima[,7], xlab="Diabetes pedigree function", main="Histogram of Diabetes pedigree function")
+hist(pima[,8], xlab="Age", main="Histogram of Age")
+
+## definitely , there are some data are unusual and need to be furter processed befor we start to build the model
+
+pima$PGC[pima$PGC==0] <- NA 
+pima$DBP[pima$DBP==0] <- NA 
+pima$BMI[pima$BMI==0] <- NA 
+pima <- na.omit(pima)
+str(pima)
+
+par(mfrow=c(2,3))
+hist(pima[,1], xlab="Number of times pregnant", main="Histogram of Number of times pregnant")
+hist(pima[,2], xlab="Plasma glucose concentration ", main="Histogram of Plasma glucose concentration ")
+hist(pima[,3], xlab="Diastolic blood pressure ", main="Histogram of Diastolic blood pressure ")
+hist(pima[,4], xlab="Triceps skin fold thickness ", main="Histogram of Triceps skin fold thickness ")
+hist(pima[,5], xlab="2-Hour serum insulin  ", main="2-Hour serum insulin")
+hist(pima[,6], xlab="Body mass index ", main="Histogram of Body mass index ")
+hist(pima[,7], xlab="Diabetes pedigree function", main="Histogram of Diabetes pedigree function")
+hist(pima[,8], xlab="Age", main="Histogram of Age")
+
+#######
+
+In the original data set, a  model using adat algibra was used to make prediction of the diabetes based on other 8 continuous variables. For our purpose of develop a projects covering different topics, we are going to use one of the predictors as a dependent output, and use both other 7 variables and the original output as our predicitors. After compare the correlection  between them, we chosed BMI as the dependent output. 
+
+
+We first use the best subset selection approach. By using this approach, one model will be selected with different numbers of varialbes based on the largergest R^2 or the smallest RSS.  Totallly , 2^8 models will be generated and compared, which make this process very tedious and infeasiable if there is a large numbers of predicators. Fortunately, we can use the available R package to help us accomplish the model selection. 
+
+library (leaps)
+regfit.full=regsubsets(BMI~., data=pima)
+summary(regfit.full)
+
+An asterisk indicates that a given variable is included in the corresponding model. For instance, this output indicates that the best three-variable model contains only DBP, TSF and DIAB. Now if we check the R square of each model, we can find that the R square increase as the numbers of predicitors increase.
+
+regsummary=summary(regfit.full)
+names (regsummary)
+regsummary$rsq  
+regsummary$rss
+
+
+## the data suggest that model
+As indicated in the output, the R square is increased from 0.161225 with one predicator to 0.2991542 with 8 predicators. Meanwhile, we can also found the decrease of RSS from 28799.86 to 24047.26 as the predicators increasing.
+
+Another stategy for model selection is to perform forward stepwise and backforwd stepwise selections. Both methods are computationally efficient to the best subset selection, total 1+$1/2 p(p+1)models will be explored which is much less when p is large. Futhermore, since stepwise method will only explore a restricted subset of models, the chance of  overfitting and high variance of coefficient estimate will be reducedand thus make them more attractive.
+
+Forward stepwise selection begins with a model containing no predictors, and then adds predictors to the model, one-at-a-time, until all of the predictors are in the model.On the other hand,  backward selection begins with the full least squares model containing
+all p predictors, and then iteratively removes the least useful predictor, one-at-a-time.Both method will generate K (p-1) best models with different set of predicators, where the best model is defined as having the smallest RSS and largest R square.
+
+Again, we can still use a function regsubset to help us for the tedious model selection in R studio, using the argument method="forward" or method="backward"
+
+regfit.fwd=regsubsets(BMI~., data=pima, method="forward")
+summary(regfit.fwd)
+regfit.bwd=regsubsets(BMI~., data=pima, method="backward")
+summary(regfit.bwd)
+
+The two methods gave the identical models for different set of predicators, and also indentical to the models from best subset methods. As mentioned in the begining, RSS and R2 are not suitable for selecting the best model among a collection of models with di???erent numbers of predictors ,becuase they are designed to minize the training error other than testing error,which the later is always underestimated. So the training error need to be adjusted using techniques such as Cp, Akaike information criterion (AIC), Bayesian information criterion (BIC), and adjusted R2, to assist the selection of models with di???erent numbers of predicators. 
+
+For a ???tted least squares model containing d predictors, the Cp estimate
+of test MSE is computed using the equation
+
+The AIC criterion is de???ned for a large class of models ???t by maximum
+likelihood.  AIC is given by
+
+For the least squares model with d predictors, the BIC is, up to irrelevant constants, given by
+
+SO Cp , BIC and AIC statistic all adds a penalty  to the training RSS in order to adjust for the fact that the training error tends to underestimate the test error.Clearly, the penalty increases as the number of predictors in the model increases; this is intended to adjust for the corresponding decrease in training RSS. Also, Hence for least squares models, Cp and AIC are proportional to each other; the BIC statistic generally places a heavier penalty on models with many predicators.
+
+The adjusted R2 statistic is another popular approach for selecting among
+a set of models that contain di???erent numbers of variables.  For a least squares model with d variables, the adjusted R2 statistic is calculated as
+The intuition behind the adjusted R2 is that once all of the correct variables have been included in the model, adding additional noise variables will lead to only a very small decrease in RSS. Since adding noise variables leads to an increase in d, such variables will lead to an increase in  ,and consequently a decrease in the adjusted R2.
+
+Since best subset selection, forward stepwise and backward stepwise selections gave the same results, so we can use one of them to further select the best model under the criterion mentioned above. Since Cp and AIC are proportional with each other , only the results fo Cp was given in the summary. 
+
+regsummary$cp  
+regsummary$bic  
+regsummary$adjr2
+
+Cp results suggest that model with 5 predicators;
+Bic esults suggest that model with 3 predicators and adjust R2 Results suggest that model with 6 predicators, the difference  with  5 predicators model is very small.
+
+
+par(mfrow=c(2,3))
+plot(regsummary$rss ,xlab="Number of Variables ",ylab="RSS",type="l", col="blue")
+plot(regsummary$adjr2 ,xlab="Number of Variables ",ylab="Adjusted RSq",type="l", col="blue")
+plot(regsummary$cp ,xlab="Number of Variables ",ylab="Cp",type="l", col="blue")
+plot(regsummary$bic ,xlab="Number of Variables ",ylab="BIC",type="l", col="blue")
+
+
+plot(regfit.full,scale="Cp")
+
+Now we can check the lm model with 3 predicators, 
+lm1 <- lm(BMI~DBP+TSF+diab, data=pima)
+lm2 <- lm(BMI~DBP+TSF+diab+age+DPF, data=pima)
+lm3 <- lm(BMI~DBP+TSF+diab+age+DPF+PGC, data=pima)
+
+par(mar=rep(2,4))
+plot(lm1)
+plot(lm2)
+plot(lm3)
+
+##### Model selection using likihoood ratio test(Avova)
+Aa illustrated above, three models were built depending on different cretia and the model with smallest predictors is a subset of other two and so on. Given the fact that therer are no enough data for model testing, generaly a model with less predicators is preferred since its simplicity and minizing the probility to bring in  noise by other unncessary predicators. However, alikihood ration test is a powerful test can be used to decide the significancy of the correlation coefficient between nesting models. 
+
+anova (lm1, test="LRT")
+anova (lm1, lm2, test="LRT")
+anova (lm1, lm3, test="LRT")
+anova (lm2, lm3, test="LRT")
+
+Cross validation using Bootstrping
+
+As mentioned earlier, model selection is not only based on the training error, but also based on the testing error, which is always underestimated by the training error. Since therer are no enough dataset for testing model, we can use another powerful statistical tool-bootstraping-  to assess the variability associated with the regression coe???cients in a linear model fit. The intuition is tha new datasets can be generated  by repeatingly sampling from the original data set with replacement. so we can generate bootstrap statistics of interest to e???ectively estimate the variability associated with regression coe???cients.
+
+Now we need to creat a function;
+
+boot.fn=function(data,index){
+return(coef(lm(BMI~DBP+TSF+diab, data=data, subset=index)))}
+boot.fn(pima, 1:724)
+
+Now we use the boot() function to compute the standard errors of 1,000
+bootstrap estimates for the regression coe???cients od the selected models .
+
+bootresult=boot(pima,boot.fn,2000)
+names (bootresult)
+bootresult$t
+plot(bootresult, breaks=200)
+
+
+Note :  not finish Bootstrapping  yet but have som eideas, no sure if I need to do bootstrp inference  or just ust the std error data.
+
+
+summary (lm1)$coef
+name 
+
+
+
+```
+
+You can also embed plots, for example:
+
+```{r fig.width=7, fig.height=6}
+
+```
+
